@@ -78,7 +78,7 @@ Function Get-Now{
     $Script:Now = (get-date).tostring("[dd/MM HH:mm:ss:ffff]")
 }
 
-#& FilePiucker function for selecting input file via explorer window
+#& FilePicker function for selecting input file via explorer window
 Function Get-FilePicker {
     Param ()
     [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
