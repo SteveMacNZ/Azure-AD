@@ -1,4 +1,4 @@
-# Azure AD Privilegd Identity Manager (PIM) Scripts
+# Azure AD Privileged Identity Manager (PIM) Scripts
 
 ## Register-PIMAADGroups.ps1
 ### Overview
