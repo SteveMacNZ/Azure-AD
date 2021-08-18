@@ -16,5 +16,5 @@
 - [ ] To do: script to be updated and uploaded
 
 ## Invoke-AddSSPR
-
-- [ ] To do: script to be updated and uploaded
+ Adds a list of users from a CSV file to a defined Self Service Password Reset group in Azure AD
+- [X] To do: script to be updated and uploaded
