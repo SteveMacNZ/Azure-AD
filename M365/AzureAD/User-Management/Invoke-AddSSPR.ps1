@@ -65,10 +65,10 @@ Function Start-Logging{
     Start-Transcript -path $Script:LogFile -IncludeInvocationHeader -Append                 # Start Transcription append if log exists
     Write-Host ''                                                                           # write Line spacer into Transcription file
     Write-Host ''                                                                           # write Line spacer into Transcription file
-    Write-Host  "========================================================" 
-    Write-Host  "====== $Script:Now Processing Started ========" 
-    Write-Host  "========================================================" 
-    Write-Host  ''
+    Write-Host "========================================================" 
+    Write-Host "====== $Script:Now Processing Started ========" 
+    Write-Host "========================================================" 
+    Write-Host ''
     
     Write-Host ''                                                                           # write Line spacer into Transcription file
 }
