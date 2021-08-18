@@ -1,0 +1,2 @@
+Workload,FilePath,Name,Mailbox,IsArchive,TargetRootFolder,ContentCodePage,SPFileContainer,SPManifestContainer,SPSiteUrl
+Exchange,PST/Site,<Name>.pst,First.Last@domain.co.nz,FALSE,PST Import,,,,

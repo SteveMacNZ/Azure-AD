@@ -20,7 +20,7 @@
   Creation Date:  12/10/19
   Purpose/Change: Initial Script
 .LINK
-  None
+  https://github.com/SteveMacNZ/Azure-M365/tree/main/M365/ExchangeOnline/PST-Ingestion
 .EXAMPLE
   .\Get-PSTSize.ps1
   Gets all PST files in specified directory and returns their size
@@ -75,19 +75,19 @@ Function Start-Logging{
     Write-Host  ''
     
     Write-Host ''                                                                           # write Line spacer into Transcription file
-  }
+}
   
 #& Date time formatting for timestamped updated
   Function Get-Now{
     $Script:Now = (get-date).tostring("[dd/MM HH:mm:ss:ffff]")
-  }
+}
 
 #& Clean up log files in script root older than 15 days
 Function Clear-TransLogs{
     Get-Now
     Write-Output "$Script:Now - Cleaning up transaction logs over 15 days old"
     Get-ChildItem $PSScriptRoot -recurse "*$Script:ScriptName.log" -force | Where-Object {$_.lastwritetime -lt (get-date).adddays(-15)} | Remove-Item -force
-  }
+}
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
