@@ -63,7 +63,7 @@ $Script:Desc2       = ""                                                        
 $Script:PSArchitecture = ''                                                         # Place holder for x86 / x64 bit detection
 
 #^ File Picker / Folder Picker Setup
-[System.IO.FileInfo]$Script:File  = ''                                              # File var for Get-FilePicker Function
+$Script:File  = ''                                                                  # File var for Get-FilePicker Function
 $Script:FPDir       = '$PSScriptRoot'                                               # File Picker Initial Directory
 $Script:FileTypes   = "Text files (*.txt)|*.txt|CSV File (*.csv)|*.csv|All files (*.*)|*.*" # File types to be listed in file picker
 $Script:FileIndex   = "2"                                                           # What file type to set as default in file picker (based on above order)
