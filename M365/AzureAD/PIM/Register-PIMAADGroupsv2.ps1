@@ -1,29 +1,41 @@
+#region ------------------------------------------------------[Synopsis]--------------------------------------------------
 <#
 .SYNOPSIS
-  Register-PIMAADGroupsv2
+  Connects to Graph API and creates PIM assignable Security Groups based on CSV input and adds the created group into the PIM role as an permanent eligable assigment
 .DESCRIPTION
-  what does this script do? extended description 
+  Connects to Graph API and creates PIM assignable Security Groups based on CSV input and adds the created group into the PIM role as an pernanent eligable assigment 
 .PARAMETER None
   None
 .INPUTS
-  What Inputs  
+  CSV file with groups to create with the following fields
+  mailNickname ==> mailnickname of the PIM enabled group
+  DisplayName ==> Display Name of the Group
+  Description ==> Description of the Group
+  Owner ==> Group Owner in First last name format
+  RoleName ==> Name of the PIM role to assign   
 .OUTPUTS
-  What outputs
+  CSV Output file(s) in the Exports directory
+  YYYY-MM-dd_PIM_All_Directory_Roles.csv ==> CSV export of all PIM directory Roles
+    DisplayName ==> Display name of the PIM Role
+    Id ==> Guid of the PIM Role object
+  YYYY-MM-dd_PIM_Role_Assignment_Report.csv ==> CSV export of PIM groups created with the following fields:
+    GroupName | OwnerName | OwnerID | GroupGUID | PIMRole | PIMRoleID | Schedule (this may be blank) | Status
 .NOTES
-  Version:        2.0.0.0
+  Version:        2.0.0.2
   Author:         Steve McIntyre
-  Creation Date:  DD/MM/20YY
-  Purpose/Change: Re-written to use Graph API to create the PIM Role group and assign eligable role permission
+  Creation Date:  16/04/2024
+  Purpose/Change: Updated to create a permament eligible PIM enrolement
 .LINK
   None
 .EXAMPLE
   ^ . Register-PIMAADGroupsv2.ps1
-  does what with example of cmdlet
+  creates PIM role security groups based on CSV Input file and assigns the group to the PIM role as an eligible assignment
   Register-PIMAADGroupsv2.ps1
 
 #>
+#endregion
 
-#requires -version 4
+#requires -version 7
 #region ------------------------------------------------------[Script Parameters]--------------------------------------------------
 
 Param (
@@ -37,9 +49,7 @@ Param (
 #$ErrorActionPreference = 'SilentlyContinue'
 
 #& Module Imports
-#Import-Module ActiveDirectory
-Import-Module Microsoft.Graph.Groups
-Import-Module Microsoft.Graph.Identity.Governance
+Import-Module -Name Microsoft.Graph.Groups, Microsoft.Graph.Users, Microsoft.Graph.Identity.Governance
 
 #& Includes - Scripts & Modules
 . .\Get-CommonFunctions.ps1                                 # Include Common Functions
@@ -55,9 +65,9 @@ $Script:dest        = "$PSScriptRoot\Exports"                                   
 $Script:LogDir      = "$PSScriptRoot\Logs"                                          # Logdir for Clear-TransLogs function for $PSScript Root
 $Script:LogFile     = $Script:LogDir + "\" + $Script:Date + "_" + $env:USERNAME + "_" + $Script:ScriptName + ".log"    # logfile location and name
 $Script:BatchName   = ''                                                            # Batch name variable placeholder
-$Script:GUID        = '37c71877-303b-4b5f-b57d-76f2827f5e39'                        # Script GUID
+$Script:GUID        = '2c5df791-3008-4660-ba56-a37bffee3f18'                        # Script GUID
   #^ Use New-Guid cmdlet to generate new script GUID for each version change of the script
-[version]$Script:Version  = '2.0.0.0'                                               # Script Version Number
+[version]$Script:Version  = '2.0.0.2'                                               # Script Version Number
 $Script:Client      = ''                                                            # Set Client Name - Used in Registry Operations
 $Script:WHO         = whoami                                                        # Collect WhoAmI
 $Script:Desc        = ""                                                            # Description displayed in Get-ScriptInfo function
@@ -73,6 +83,8 @@ $Script:FileIndex   = "2"                                                       
 $Script:MgDirRoles  = [System.Collections.ArrayList]@()                             # Array list for all Graph API Directory Roles
 $Script:MgUsers     = [System.Collections.ArrayList]@()                             # Array list for all Users for Owner Assignment
 $Script:PIMObjs     = [System.Collections.ArrayList]@()                             # Array list for PIM Role Assignments Class objects
+
+$Script:GphScopes = "RoleManagement.ReadWrite.Directory,User.Read.All,Group.ReadWrite.All" # List of Graph API scopes required for connection
 
 #endregion
 #region --------------------------------------------------------[Hash Tables]------------------------------------------------------
@@ -116,7 +128,6 @@ Class PIMObj{
   } 
 }
 
-
 #endregion
 #region -----------------------------------------------------------[Execution]------------------------------------------------------------
 <#
@@ -140,17 +151,17 @@ Clear-TransLogs                                                                 
 Invoke-TestPath -ParamPath $Script:dest                                                 # Test and create folder structure 
 Invoke-TestPath -ParamPath $Script:LogDir                                               # Test and create folder structure
 
-Connect-MgGraph -Scopes "RoleManagement.ReadWrite.Directory,Group.ReadWrite.All"        # Connect to MS Grpah via PowerShell using Modern Auth
+Connect-MgGraph -Scopes $Script:GphScopes                                               # Connect to MS Grpah via PowerShell using Modern Auth
 
 Write-Host ""
 Write-InfoMsg "Enumerating Directory Roles"
 $Script:MgDirRoles = Get-MgDirectoryRoleTemplate | Select-Object DisplayName, Id | Sort-Object DisplayName
-$PIMRoles = $Script:dest + "\" + $Script:Date + "_PIM_All_Directory_Roles.csv"          # CSV output of PIM Assignments
-$Script:MgDirRoles | Export-Csv -Path $PIMRoles -NoTypeInformation                      # Exports list of all Directory Management Role Templates
+$PIMRolesRpt = $Script:dest + "\" + $Script:Date + "_PIM_All_Directory_Roles.csv"       # CSV output of PIM Assignments
+$Script:MgDirRoles | Export-Csv -Path $PIMRolesRpt -NoTypeInformation                   # Exports list of all Directory Management Role Templates
 Write-Host ""
 
 Write-InfoMsg "Enumerating Users for group Owner lookups. This may take a few minutes. please wait...."
-$Script:MgUsers = Get-MGUser | Select-Object DisplayName, Id, UserPrincipalName | Sort-Object DisplayName
+$Script:MgUsers = Get-MGUser -All | Select-Object DisplayName, Id, UserPrincipalName | Sort-Object DisplayName
 Write-Host ""
 
 Get-FilePicker                                                                          # Prompt user for input file
@@ -237,7 +248,7 @@ Foreach ($PRole in $PIMRoles)  {
 
   Write-Host "Finding $PIMRole in the role array list..." -ForegroundColor White
   $RoleId = $Script:MgDirRoles | Where-Object {$_.DisplayName -eq "$PIMRole"}
-  $filter = 'DisplayName eq ' + '"' + $DisplayName + '"'
+  $filter = "DisplayName eq " + "'" + $DisplayName + "'"
   $GPExists = Get-MgGroup -Filter "$filter"
   If (!($RoleId -or $GPExists)){
     Write-ErrorMsg "Unknown Role or Group Error - Skipping creation of the PIM Role Assignment....."
@@ -261,7 +272,6 @@ Foreach ($PRole in $PIMRoles)  {
         scheduleInfo = @{
           startDateTime = Get-Date
           expiration = @{
-          endDateTime = (Get-Date).AddYears(1)
           type = "AfterDateTime"
           }
         }
@@ -269,7 +279,7 @@ Foreach ($PRole in $PIMRoles)  {
       
       $roleAssignment = New-MgRoleManagementDirectoryRoleEligibilityScheduleRequest -BodyParameter $params
       $roleAssignment | Format-List                                           #! [Debug] line to display info of the created group
-      $PIMSchedule = "$($roleAssignment.Schedule)"                            # Populate Schedule for export to CSV
+      $PIMSchedule = "$($roleAssignment.ScheduleInfo)"                        # Populate Schedule for export to CSV
       $PIMRoleState = "$($roleAssignment.Status)"                             # Populate Status for export to CSV
       Write-Host ""
     }
@@ -297,14 +307,14 @@ Foreach ($PRole in $PIMRoles)  {
 $PIMReport = $Script:dest + "\" + $Script:Date + "_PIM_Role_Assignment_Report.csv" # CSV output of PIM Assignments
 
 Write-InfoMsg "Writing class objects to csv file"                           
-$Script:PIMObjs | Export-Csv -Path $PIMReport -NoTypeInformation            # writes the class array out to CSV file
+$Script:PIMObjs | Export-Csv -Path $PIMReport -NoTypeInformation              # writes the class array out to CSV file
 
 # Input / Output comparsion
 Write-Host ""
 Write-Host '--------------------------------------------------------------------------------'
 Write-Host '|                      Input / Output CSV Count Comparsion                     |'
 Write-Host '--------------------------------------------------------------------------------'
-$OutputObject = Import-csv "$PIMReport" -Delimiter ","        # Read Output for input/output comparsion
+$OutputObject = Import-csv "$PIMReport" -Delimiter ","                        # Read Output for input/output comparsion
 $OutputCount = $OutputObject.count
 If ($maximum -eq $OutputCount){
   Get-Now
@@ -320,9 +330,11 @@ Write-Host ''
 Write-Host ''
 Get-Now
 Write-Host "$Script:Now [INFORMATION] Processing finished with following outputs"
-Write-Host "+ $PIMRoles" -ForegroundColor Yellow
+Write-Host "+ $PIMRolesRpt" -ForegroundColor Yellow
 Write-Host "+ $PIMReport" -ForegroundColor Yellow 
-Write-Host ''                      
+Write-Host '' 
+
+Disconnect-MgGraph                                                            # Disconnect from Microsoft Graph API
 
 Get-Now
 Write-Host "================================================================================"  
@@ -332,3 +344,37 @@ Write-Host "====================================================================
 Stop-Transcript
 #endregion
 #---------------------------------------------------------[Execution Completed]----------------------------------------------------------
+
+#region ExtendedHelp
+<#
+& To Create a PIM eligible Assignment with an end date - works using 1 - 99 years as the end date
+$params = @{
+  action = "AdminAssign"
+  justification = "Assign $DisplayName eligibility to $PIMRole"
+  roleDefinitionId = $PIMRoleDefId
+  directoryScopeId = "/"
+  principalId = $GroupGUID
+  scheduleInfo = @{
+    startDateTime = Get-Date
+    expiration = @{
+    endDateTime = (Get-Date).AddYears(1)
+    type = "AfterDateTime"
+  }
+}
+
+& To Create a PIM eligible Assignment with an Parmanent assigment
+$params = @{
+  action = "AdminAssign"
+  justification = "Assign $DisplayName eligibility to $PIMRole"
+  roleDefinitionId = $PIMRoleDefId
+  directoryScopeId = "/"
+  principalId = $GroupGUID
+  scheduleInfo = @{
+    startDateTime = Get-Date
+    expiration = @{
+    type = "AfterDateTime"
+  }
+}
+
+#>
+#endregion
