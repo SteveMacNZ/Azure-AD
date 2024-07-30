@@ -118,23 +118,29 @@ Function Test-Exchange{
 #& Test-ExchangeOnline function to detect connection to exchange online 
 Function Test-ExchangeOnline
 {
-    #Check for current open O365 sessions and allow the admin to either use the existing session or create a new one
-    $EXOsession = Get-PSSession | Where-Object { ($_.ComputerName -eq 'Outlook.office365.com') -and ($_.ConfigurationName -eq 'Microsoft.Exchange') }
-    if($null -ne $EXOsession)
-    {
-        $a = Read-Host "An open session to Exchange Online PowerShell already exists. Do you want to use this session?  Enter y to use the open session, anything else to close and open a fresh session."
-        if($a.ToLower() -eq 'y')
-        {
-            Get-Now
-            Write-Host "$Script:Now [INFORMATION] Using existing Exchange Online Powershell session." -ForeGroundColor Green
-            return
-        }
-        Disconnect-ExchangeOnline -Confirm:$false 
+  #Check for current open O365 sessions and allow the admin to either use the existing session or create a new one
+  $EXOsession = Get-ConnectionInformation
+  if($null -ne $EXOsession){
+    $a = Read-Host "An open session to Exchange Online PowerShell already exists. Do you want to use this session?  Enter y to use the open session, anything else to close and open a fresh session."
+    if($a.ToLower() -eq 'y'){
+      Write-SuccessMsg "Using existing Exchange Online Powershell session." 
+      return
     }
-    Import-Module ExchangeOnlineManagement
+    else{
+      Write-Host "Disconnecting from open Exchange Online session" -ForegroundColor Yellow
+      Disconnect-ExchangeOnline -Confirm:$false
+      Write-Host "Connecting to Exchange Online"
+      #^ Uncomment -Prefix line to use command prefix e.g. Get-CloudMailbox
+      #Connect-ExchangeOnline -Prefix "Cloud" -ShowBanner:$false
+      Connect-ExchangeOnline -ShowBanner:$false
+    }  
+  }
+  else{
+    Write-Host "Connecting to Exchange Online"
     #^ Uncomment -Prefix line to use command prefix e.g. Get-CloudMailbox
     #Connect-ExchangeOnline -Prefix "Cloud" -ShowBanner:$false
     Connect-ExchangeOnline -ShowBanner:$false
+  }
 }
 
 #& TestPath function for testing and creating directories
